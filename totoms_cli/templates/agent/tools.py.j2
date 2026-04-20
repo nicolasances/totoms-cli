@@ -1,0 +1,33 @@
+# ---------------------------------------------------------------------------
+# Custom LangChain tools for {{ agent_class_name }}.
+#
+# Uncomment and adapt the example below to define your own local tools.
+# Pass instances to create_agent() inside agent.py alongside any MCP tools.
+# ---------------------------------------------------------------------------
+
+# import logging
+# import os
+# from typing import List
+#
+# from langchain_core.tools import tool
+#
+# _logger = logging.getLogger(__name__)
+#
+#
+# def create_my_custom_tool():
+#     """Return a LangChain tool that does something useful."""
+#
+#     @tool
+#     def myCustomTool(query: str) -> str:
+#         """Describe what this tool does so the LLM knows when to call it.
+#
+#         Args:
+#             query: The input the LLM passes to this tool.
+#
+#         Returns:
+#             A string result that the LLM can reason over.
+#         """
+#         # TODO: implement tool logic
+#         return f"Result for: {query}"
+#
+#     return myCustomTool

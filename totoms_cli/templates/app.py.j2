@@ -1,0 +1,57 @@
+"""
+{{ project_name }} - Toto Microservice.
+
+Uses TotoMicroservice framework for:
+- Configuration management
+- API controller with FastAPI
+- Message bus for event handling
+
+Run with: python app.py
+"""
+import asyncio
+import os
+from config.config import MyConfig
+{% if service_type == "agent" %}
+from totoms import ( TotoMicroservice, TotoMicroserviceConfiguration, TotoEnvironment, APIConfiguration, AgentsConfiguration, )
+{% else %}
+from totoms import ( TotoMicroservice, TotoMicroserviceConfiguration, TotoEnvironment, APIConfiguration, )
+{% endif %}
+from totoms.TotoMicroservice import APIEndpoint, determine_environment
+
+from dlg.hello import say_hello
+{% if service_type == "agent" %}
+from agent.{{ agent_manifest.agent_id }}_agent import {{ agent_class_name }}
+{% endif %}
+
+def get_microservice_config() -> TotoMicroserviceConfiguration:
+    """Create and return the microservice configuration."""
+    return TotoMicroserviceConfiguration(
+        service_name="{{ project_name }}",
+        base_path="{{ base_path }}",
+        environment=TotoEnvironment(
+            hyperscaler=os.getenv("HYPERSCALER", "gcp").lower(),
+            hyperscaler_configuration=determine_environment()
+        ),
+        custom_config=MyConfig,
+        api_configuration=APIConfiguration(
+            api_endpoints=[
+                APIEndpoint(method="GET", path="/hello", delegate=say_hello),
+            ]
+        ),
+{% if service_type == "agent" %}
+        agents_configuration=AgentsConfiguration(
+            agents=[{{ agent_class_name }}]
+        ),
+{% endif %}
+    )
+
+
+async def main():
+    """Main entry point for running the microservice."""
+    microservice = await TotoMicroservice.init(get_microservice_config())
+    port = int(os.getenv("PORT", "8080"))
+    await microservice.start(port=port)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

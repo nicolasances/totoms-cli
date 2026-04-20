@@ -1,0 +1,159 @@
+"""
+{{ agent_class_name }} — a minimal Gale conversational agent.
+
+Selects the LLM based on the HYPERSCALER environment variable:
+  - gcp  → Google Gemini (via Vertex AI)
+"""
+
+import os
+import uuid
+from typing import Optional
+
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# ---------------------------------------------------------------------------
+# MCP Client (uncomment to enable tool calling via MCP servers)
+# ---------------------------------------------------------------------------
+# from langchain.agents import create_agent
+# from langchain_mcp_adapters.client import MultiServerMCPClient
+#
+# # List the MCP tool names this agent is allowed to use.
+# # Names must match the identifiers exposed by the MCP server (usually camelCase).
+# _ALLOWED_MCP_TOOLS = {"myToolName"}
+# ---------------------------------------------------------------------------
+
+from totoms.evt.TotoMessageBus import TotoMessageBus
+from totoms.gale.agent.GaleConversationalAgent import GaleConversationalAgent
+from totoms.gale.model.AgentConversationMessage import AgentConversationMessage, StreamInfo
+from totoms.gale.model.AgentManifest import AgentManifest
+from totoms.model.TotoConfig import TotoControllerConfig
+from totoms.TotoLogger import TotoLogger
+
+# Uncomment to use custom local tools defined in agent/tools.py:
+# from agent.tools import create_my_custom_tool
+
+SYSTEM_PROMPT = """
+    You are {{ agent_manifest.agent_name }}: {{ agent_manifest.agent_description }}
+
+    Help the user with their request.
+"""
+
+
+def _create_llm():
+    """Create the Gemini LLM."""
+    project = os.environ.get("GCP_PID")
+    location = os.environ.get("GCP_REGION", "europe-west1")
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+    return ChatGoogleGenerativeAI(
+        model=model,
+        project=project,
+        location=location,
+        temperature=0,
+        thinking_budget=-1,
+        include_thoughts=True,
+    )
+
+
+class {{ agent_class_name }}(GaleConversationalAgent):
+    """Conversational agent backed by a LangChain LLM."""
+
+    def __init__(self, message_bus: Optional[TotoMessageBus], config: TotoControllerConfig):
+        super().__init__(message_bus, config)
+        self._llm = _create_llm()
+        # Uncomment when using MCP tools — agent is lazily built on first message:
+        # self._agent = None
+
+    def get_manifest(self) -> AgentManifest:
+        return AgentManifest(
+            agent_type="{{ agent_manifest.agent_type }}",
+            agent_id="{{ agent_manifest.agent_id }}",
+            human_friendly_name="{{ agent_manifest.agent_name }}",
+            description="{{ agent_manifest.agent_description }}",
+        )
+
+    async def on_message(self, message: AgentConversationMessage) -> AgentConversationMessage:
+
+        logger = TotoLogger.get_instance()
+
+        logger.log(message.conversation_id, f"Received message for agent {message.agent_id}: {message.message}")
+
+        stream_id = str(uuid.uuid4())
+
+        # Acknowledge receipt while the LLM processes
+        await self.publish_message(AgentConversationMessage(
+            conversation_id=message.conversation_id,
+            message_id=str(uuid.uuid4()),
+            agent_id=message.agent_id,
+            message="Got your message, working on it!",
+            actor="agent",
+            stream=StreamInfo(stream_id=stream_id, sequence_number=1, last=False),
+        ))
+
+        # ---------------------------------------------------------------------------
+        # MCP Client — uncomment this block to enable tool calling via MCP servers.
+        #
+        # Replace MY_SERVICE_API_ENDPOINT with the env var for your upstream service
+        # and adjust the server name / transport URL accordingly.
+        # ---------------------------------------------------------------------------
+        # if self._agent is None:
+        #     service_url = os.environ.get("MY_SERVICE_API_ENDPOINT")
+        #
+        #     logger.log(message.conversation_id, f"Loading MCP tools from {service_url}/mcp")
+        #
+        #     headers = {}
+        #     if self._auth_header:
+        #         headers["Authorization"] = self._auth_header
+        #
+        #     client = MultiServerMCPClient({
+        #         "my-service": {
+        #             "url": f"{service_url}/mcp",
+        #             "transport": "streamable_http",
+        #             "headers": headers,
+        #         }
+        #     })
+        #
+        #     mcp_tools = await client.get_tools()
+        #     filtered_mcp_tools = [t for t in mcp_tools if t.name in _ALLOWED_MCP_TOOLS]
+        #
+        #     # Combine with any local tools from agent/tools.py:
+        #     # my_tool = create_my_custom_tool()
+        #     # all_tools = [my_tool] + filtered_mcp_tools
+        #     all_tools = filtered_mcp_tools
+        #
+        #     self._agent = create_agent(self._llm, all_tools, system_prompt=SYSTEM_PROMPT)
+        #
+        # result = await self._agent.ainvoke({"messages": [("human", message.message)]})
+        # raw_content = result["messages"][-1].content
+        # ---------------------------------------------------------------------------
+
+        # Invoke the LLM directly (no tools).
+        # Remove/replace this block when using MCP tools above.
+        result = await self._llm.ainvoke([
+            ("system", SYSTEM_PROMPT),
+            ("human", message.message),
+        ])
+        raw_content = result.content
+
+        if isinstance(raw_content, list):
+            text_blocks = [block for block in raw_content if isinstance(block, dict) and block.get("type") == "text"]
+            if text_blocks:
+                answer = text_blocks[0]["text"]
+            else:
+                answer = str(raw_content)
+            chain_of_thought = raw_content
+        else:
+            answer = raw_content
+            chain_of_thought = None
+
+        logger.log(message.conversation_id, f"LLM response for agent {message.agent_id}: {answer}")
+
+        return AgentConversationMessage(
+            conversation_id=message.conversation_id,
+            message_id=message.message_id,
+            agent_id=message.agent_id,
+            message=answer,
+            actor="agent",
+            stream=StreamInfo(stream_id=stream_id, sequence_number=2, last=True),
+            chain_of_thought=chain_of_thought,
+        )
