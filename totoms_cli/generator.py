@@ -123,24 +123,5 @@ def generate_project(config: ProjectConfig, output_dir: Path) -> Path:
         subprocess.run(["git", "init", "-q", str(project_dir)], check=True)
     except subprocess.CalledProcessError:
         console.print("  [yellow]⚠ Could not initialize git repository. Run 'git init' manually.[/yellow]")
-        return project_dir
-
-    try:
-        subprocess.run(["git", "add", "-A"], cwd=project_dir, check=True)
-    except subprocess.CalledProcessError:
-        console.print("  [yellow]⚠ Could not stage files. Run 'git add -A' manually.[/yellow]")
-        return project_dir
-
-    try:
-        subprocess.run(
-            ["git", "commit", "-q", "-m", "Initial commit"],
-            cwd=project_dir,
-            check=True,
-        )
-    except subprocess.CalledProcessError:
-        console.print(
-            "  [yellow]⚠ Could not create initial git commit "
-            "(git user not configured). Run 'git commit' manually.[/yellow]"
-        )
 
     return project_dir
