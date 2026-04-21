@@ -19,6 +19,7 @@ totoms_cli/templates/hello.py.j2
 totoms_cli/templates/init.py.j2
 totoms_cli/templates/requirements.txt.j2
 totoms_cli/templates/agent/agent.py.j2
+totoms_cli/templates/agent/tools.py.j2
 totoms_cli/templates/terraform/agent.tf.j2
 totoms_cli/templates/terraform/microservice.tf.j2
 totoms_cli/templates/workflows/release-dev.yml.j2

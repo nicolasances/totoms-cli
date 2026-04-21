@@ -1,6 +1,6 @@
 """Core scaffolding logic for generating Toto microservice projects."""
 
-import os
+import subprocess
 from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
@@ -118,7 +118,29 @@ def generate_project(config: ProjectConfig, output_dir: Path) -> Path:
     # Create empty docs/ directory
     (project_dir / "docs").mkdir(parents=True, exist_ok=True)
 
-    # Initialize git repo
-    os.system(f"git init -q {project_dir}")
+    # Initialize a fresh git repo — no remote, clean history
+    try:
+        subprocess.run(["git", "init", "-q", str(project_dir)], check=True)
+    except subprocess.CalledProcessError:
+        console.print("  [yellow]⚠ Could not initialize git repository. Run 'git init' manually.[/yellow]")
+        return project_dir
+
+    try:
+        subprocess.run(["git", "add", "-A"], cwd=project_dir, check=True)
+    except subprocess.CalledProcessError:
+        console.print("  [yellow]⚠ Could not stage files. Run 'git add -A' manually.[/yellow]")
+        return project_dir
+
+    try:
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "Initial commit"],
+            cwd=project_dir,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        console.print(
+            "  [yellow]⚠ Could not create initial git commit "
+            "(git user not configured). Run 'git commit' manually.[/yellow]"
+        )
 
     return project_dir
