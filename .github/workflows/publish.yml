@@ -1,0 +1,98 @@
+name: Publish Package
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Bump version, build, and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Determine bump type from commit message
+        id: bump_type
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          if echo "$COMMIT_MSG" | grep -qE '(BREAKING[[:space:]]CHANGE|^[a-z]+(\([^)]+\))?!:)'; then
+            echo "bump=major" >> "$GITHUB_OUTPUT"
+          else
+            echo "bump=minor" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version in pyproject.toml
+        id: version
+        env:
+          BUMP: ${{ steps.bump_type.outputs.bump }}
+        run: |
+          python - <<'PYEOF'
+          import re, sys, os
+
+          bump = os.environ.get("BUMP", "minor")
+          with open("pyproject.toml") as f:
+              content = f.read()
+
+          match = re.search(r'version\s*=\s*"(\d+)\.(\d+)\.(\d+)"', content)
+          if not match:
+              print("Could not find version in pyproject.toml", file=sys.stderr)
+              sys.exit(1)
+
+          major = int(match.group(1))
+          minor = int(match.group(2))
+          patch = int(match.group(3))
+
+          if bump == "major":
+              major += 1
+              minor = 0
+              patch = 0
+          else:
+              minor += 1
+              patch = 0
+
+          new_version = f"{major}.{minor}.{patch}"
+          new_content = re.sub(
+              r'(version\s*=\s*)"(\d+\.\d+\.\d+)"',
+              f'\\1"{new_version}"',
+              content,
+          )
+          with open("pyproject.toml", "w") as f:
+              f.write(new_content)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as gh_out:
+              gh_out.write(f"new_version={new_version}\n")
+          print(f"Version bumped to {new_version} ({bump})")
+          PYEOF
+
+      - name: Commit and push version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }} [skip ci]"
+          git push
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: python -m twine upload dist/*
