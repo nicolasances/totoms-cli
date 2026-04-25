@@ -20,6 +20,17 @@ totoms_cli/templates/init.py.j2
 totoms_cli/templates/requirements.txt.j2
 totoms_cli/templates/agent/agent.py.j2
 totoms_cli/templates/agent/tools.py.j2
+totoms_cli/templates/node/Dockerfile.j2
+totoms_cli/templates/node/gitignore.j2
+totoms_cli/templates/node/nodemon.json.j2
+totoms_cli/templates/node/package.json.j2
+totoms_cli/templates/node/tsconfig.json.j2
+totoms_cli/templates/node/src/Config.ts.j2
+totoms_cli/templates/node/src/index.ts.j2
+totoms_cli/templates/node/src/dlg/ExampleDelegate.ts.j2
+totoms_cli/templates/node/terraform/microservice.tf.j2
+totoms_cli/templates/node/workflows/release-dev.yml.j2
+totoms_cli/templates/node/workflows/release-prod.yml.j2
 totoms_cli/templates/terraform/agent.tf.j2
 totoms_cli/templates/terraform/microservice.tf.j2
 totoms_cli/templates/workflows/release-dev.yml.j2
