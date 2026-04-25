@@ -31,6 +31,7 @@ def _build_context(config: ProjectConfig) -> dict:
 
     context = {
         **names,
+        "runtime": config.runtime,
         "service_type": config.service_type,
         "needs_mongodb": config.needs_mongodb,
     }
@@ -69,43 +70,64 @@ def generate_project(config: ProjectConfig, output_dir: Path) -> Path:
 
     context = _build_context(config)
 
-    env = Environment(
-        loader=PackageLoader("totoms_cli", "templates"),
-        autoescape=select_autoescape([]),
-        keep_trailing_newline=True,
-    )
+    if config.runtime == "node":
+        env = Environment(
+            loader=PackageLoader("totoms_cli", "templates/node"),
+            autoescape=select_autoescape([]),
+            keep_trailing_newline=True,
+        )
 
-    # Define the file mapping: (template_name, output_relative_path)
-    files = [
-        ("app.py.j2", "app.py"),
-        ("init.py.j2", "__init__.py"),
-        ("Dockerfile.j2", "Dockerfile"),
-        ("requirements.txt.j2", "requirements.txt"),
-        ("gitignore.j2", ".gitignore"),
-        # config/
-        ("config.py.j2", "config/config.py"),
-        ("init.py.j2", "config/__init__.py"),
-        # dlg/
-        ("hello.py.j2", "dlg/hello.py"),
-        ("init.py.j2", "dlg/__init__.py"),
-    ]
-
-    # Terraform
-    if config.service_type == "agent":
-        files.append(("terraform/agent.tf.j2", f"gcp/terraform/{config.project_name}.tf"))
+        files = [
+            ("src/index.ts.j2", "src/index.ts"),
+            ("src/Config.ts.j2", "src/Config.ts"),
+            ("src/dlg/ExampleDelegate.ts.j2", "src/dlg/ExampleDelegate.ts"),
+            ("Dockerfile.j2", "Dockerfile"),
+            ("package.json.j2", "package.json"),
+            ("tsconfig.json.j2", "tsconfig.json"),
+            ("nodemon.json.j2", "nodemon.json"),
+            ("gitignore.j2", ".gitignore"),
+            ("terraform/microservice.tf.j2", f"gcp/terraform/{config.project_name}.tf"),
+            ("workflows/release-dev.yml.j2", "gcp/.github/workflows/release-dev.yml"),
+            ("workflows/release-prod.yml.j2", "gcp/.github/workflows/release-prod.yml"),
+        ]
     else:
-        files.append(("terraform/microservice.tf.j2", f"gcp/terraform/{config.project_name}.tf"))
+        env = Environment(
+            loader=PackageLoader("totoms_cli", "templates"),
+            autoescape=select_autoescape([]),
+            keep_trailing_newline=True,
+        )
 
-    # GitHub Actions workflows
-    files.append(("workflows/release-dev.yml.j2", "gcp/.github/workflows/release-dev.yml"))
-    files.append(("workflows/release-prod.yml.j2", "gcp/.github/workflows/release-prod.yml"))
+        # Define the file mapping: (template_name, output_relative_path)
+        files = [
+            ("app.py.j2", "app.py"),
+            ("init.py.j2", "__init__.py"),
+            ("Dockerfile.j2", "Dockerfile"),
+            ("requirements.txt.j2", "requirements.txt"),
+            ("gitignore.j2", ".gitignore"),
+            # config/
+            ("config.py.j2", "config/config.py"),
+            ("init.py.j2", "config/__init__.py"),
+            # dlg/
+            ("hello.py.j2", "dlg/hello.py"),
+            ("init.py.j2", "dlg/__init__.py"),
+        ]
 
-    # Agent-specific files
-    if config.service_type == "agent":
-        agent_id = config.agent_manifest.agent_id
-        files.append(("init.py.j2", "agent/__init__.py"))
-        files.append(("agent/agent.py.j2", f"agent/{agent_id}_agent.py"))
-        files.append(("agent/tools.py.j2", "agent/tools.py"))
+        # Terraform
+        if config.service_type == "agent":
+            files.append(("terraform/agent.tf.j2", f"gcp/terraform/{config.project_name}.tf"))
+        else:
+            files.append(("terraform/microservice.tf.j2", f"gcp/terraform/{config.project_name}.tf"))
+
+        # GitHub Actions workflows
+        files.append(("workflows/release-dev.yml.j2", "gcp/.github/workflows/release-dev.yml"))
+        files.append(("workflows/release-prod.yml.j2", "gcp/.github/workflows/release-prod.yml"))
+
+        # Agent-specific files
+        if config.service_type == "agent":
+            agent_id = config.agent_manifest.agent_id
+            files.append(("init.py.j2", "agent/__init__.py"))
+            files.append(("agent/agent.py.j2", f"agent/{agent_id}_agent.py"))
+            files.append(("agent/tools.py.j2", "agent/tools.py"))
 
     # Create all files
     for template_name, rel_path in files:

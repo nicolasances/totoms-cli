@@ -27,6 +27,7 @@ class ProjectConfig:
     display_name: str = ""
     base_path: str = ""
     output_dir: Path = field(default_factory=lambda: Path("."))
+    runtime: str = "python"  # "python" or "node"
     service_type: str = "microservice"  # "microservice" or "agent"
     needs_mongodb: bool = False
     agent_manifest: AgentManifest = field(default_factory=AgentManifest)
@@ -76,6 +77,20 @@ def ask_base_path(project_name: str) -> str:
         return "/" + slug
 
 
+def ask_runtime() -> str:
+    """Ask whether to scaffold a Python or NodeJS service."""
+    console.print("\n🚀 What runtime should be used?")
+    console.print("  [bold]1.[/bold] Python")
+    console.print("  [bold]2.[/bold] NodeJS (TypeScript)")
+    while True:
+        choice = typer.prompt("  Choose", default="1")
+        if choice in ("1", "python"):
+            return "python"
+        if choice in ("2", "node", "nodejs"):
+            return "node"
+        console.print("  [red]✗ Please enter 1 or 2[/red]")
+
+
 def ask_service_type() -> str:
     """Ask whether this is a microservice or an agent."""
     console.print("\n🧩 What type of service is this?")
@@ -122,6 +137,7 @@ def show_summary(config: ProjectConfig) -> bool:
     table.add_row("Display Name", config.display_name)
     table.add_row("Output Directory", str(config.output_dir))
     table.add_row("Base Path", config.base_path)
+    table.add_row("Runtime", "NodeJS (TypeScript)" if config.runtime == "node" else "Python")
     table.add_row("Service Type", config.service_type)
     table.add_row("MongoDB", "Yes" if config.needs_mongodb else "No")
 
@@ -146,10 +162,12 @@ def run_wizard() -> ProjectConfig | None:
     config.display_name = ask_display_name(config.project_name)
     config.output_dir = ask_output_dir()
     config.base_path = ask_base_path(config.project_name)
-    config.service_type = ask_service_type()
+    config.runtime = ask_runtime()
+    if config.runtime == "python":
+        config.service_type = ask_service_type()
     config.needs_mongodb = ask_mongodb()
 
-    if config.service_type == "agent":
+    if config.runtime == "python" and config.service_type == "agent":
         config.agent_manifest = ask_agent_manifest()
 
     if not show_summary(config):

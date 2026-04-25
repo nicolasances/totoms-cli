@@ -29,8 +29,25 @@ def create():
         raise typer.Abort()
 
     console.print(f"\n[green]✅ Project generated at:[/green] {project_dir}\n")
-    console.print(Panel(
-        "\n".join([
+
+    if config.runtime == "node":
+        next_steps = "\n".join([
+            "[bold]Next steps:[/bold]",
+            "",
+            f"1. Create a GitHub repository named [cyan]{config.project_name}[/cyan]",
+            f"2. Copy [cyan]gcp/terraform/{config.project_name}.tf[/cyan] to your [cyan]toto-terra/[/cyan] repo",
+            f"3. Move [cyan]gcp/.github/[/cyan] to the project root as [cyan].github/[/cyan]",
+            f"4. Create Terraform workspaces: [cyan]{config.project_name}-dev[/cyan] and [cyan]{config.project_name}-prod[/cyan]",
+            "5. Apply Terraform, then push your code",
+            "",
+            f"  cd {project_dir}",
+            "  npm install",
+            "  npm run dev",
+            "",
+            "📝 Remember to update [cyan]package.json[/cyan] with the correct package name and description.",
+        ])
+    else:
+        next_steps = "\n".join([
             "[bold]Next steps:[/bold]",
             "",
             f"1. Create a GitHub repository named [cyan]{config.project_name}[/cyan]",
@@ -42,7 +59,10 @@ def create():
             f"  cd {project_dir}",
             "  python -m venv .venv && source .venv/bin/activate",
             "  pip install -r requirements.txt",
-        ]),
+        ])
+
+    console.print(Panel(
+        next_steps,
         title="🚀 What's next",
         expand=False,
     ))

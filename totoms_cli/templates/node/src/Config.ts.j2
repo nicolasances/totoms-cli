@@ -1,0 +1,20 @@
+import { APIOptions, TotoControllerConfig } from 'totoms';
+
+export class ControllerConfig extends TotoControllerConfig {
+
+    getMongoSecretNames(): { userSecretName: string; pwdSecretName: string; } | null {
+{% if needs_mongodb %}
+        return {
+            userSecretName: "{{ mongo_secret_prefix }}-mongo-user",
+            pwdSecretName: "{{ mongo_secret_prefix }}-mongo-pswd",
+        };
+{% else %}
+        return null;
+{% endif %}
+    }
+
+    getProps(): APIOptions {
+        return {}
+    }
+
+}
