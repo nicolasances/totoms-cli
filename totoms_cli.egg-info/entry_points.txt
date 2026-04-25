@@ -1,2 +1,0 @@
-[console_scripts]
-totoms = totoms_cli.main:app
