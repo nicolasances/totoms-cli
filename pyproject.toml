@@ -20,4 +20,4 @@ build-backend = "setuptools.build_meta"
 include = ["totoms_cli*"]
 
 [tool.setuptools.package-data]
-totoms_cli = ["templates/**/*"]
+totoms_cli = ["templates/init.py.j2", "templates/agent/*.j2"]

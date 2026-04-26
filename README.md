@@ -27,6 +27,8 @@ pip install -e .
 
 ## Usage
 
+> **Note:** Project generation requires internet access to clone the template repositories from GitHub.
+
 ```bash
 totoms
 ```
